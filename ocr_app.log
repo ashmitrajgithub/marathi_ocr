@@ -1,0 +1,39 @@
+2025-07-17 02:18:51,788 - INFO - Directory ensured: uploads
+2025-07-17 02:18:51,788 - INFO - Directory ensured: processed
+2025-07-17 02:18:51,789 - INFO - Starting OCR Flask Application...
+2025-07-17 02:19:04,855 - INFO - Directory ensured: uploads
+2025-07-17 02:19:04,855 - INFO - Directory ensured: processed
+2025-07-17 02:19:04,855 - INFO - Starting OCR Flask Application...
+2025-07-17 02:19:50,717 - INFO - Directory ensured: uploads
+2025-07-17 02:19:50,717 - INFO - Directory ensured: processed
+2025-07-17 02:19:50,718 - INFO - Starting OCR Flask Application...
+2025-07-17 02:20:30,217 - INFO - Directory ensured: uploads
+2025-07-17 02:20:30,217 - INFO - Directory ensured: processed
+2025-07-17 02:20:30,218 - INFO - Starting OCR Flask Application...
+2025-07-17 02:20:41,724 - INFO - Directory ensured: uploads
+2025-07-17 02:20:41,724 - INFO - Directory ensured: processed
+2025-07-17 02:20:41,724 - INFO - Starting OCR Flask Application...
+2025-07-17 02:20:41,772 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://192.168.29.176:5001
+2025-07-17 02:20:41,772 - INFO - [33mPress CTRL+C to quit[0m
+2025-07-17 02:20:41,773 - INFO -  * Restarting with stat
+2025-07-17 02:20:41,926 - INFO - Directory ensured: uploads
+2025-07-17 02:20:41,927 - INFO - Directory ensured: processed
+2025-07-17 02:20:41,927 - INFO - Starting OCR Flask Application...
+2025-07-17 02:20:41,944 - WARNING -  * Debugger is active!
+2025-07-17 02:20:41,953 - INFO -  * Debugger PIN: 874-559-528
+2025-07-17 02:21:02,736 - INFO - File uploaded: ashu_20250717_022102_5073468f.pdf
+2025-07-17 02:21:04,529 - INFO - Image preprocessing completed: processed/page_1_b1e676d6.png
+2025-07-17 02:21:06,982 - INFO - OCR successful for language: mar
+2025-07-17 02:21:07,996 - INFO - OCR successful for language: eng
+2025-07-17 02:21:07,996 - INFO - Cleaned up: processed/page_1_b1e676d6_processed.png
+2025-07-17 02:21:07,997 - INFO - Cleaned up: processed/page_1_b1e676d6.png
+2025-07-17 02:21:07,997 - INFO - PDF processing completed: 1 pages processed
+2025-07-17 02:21:07,998 - INFO - Cleaned up: uploads/ashu_20250717_022102_5073468f.pdf
+2025-07-17 02:21:07,998 - INFO - Processing completed in 5.26s
+2025-07-17 02:21:07,998 - INFO - 127.0.0.1 - - [17/Jul/2025 02:21:07] "POST /upload HTTP/1.1" 200 -
+2025-07-17 02:21:30,425 - INFO -  * Detected change in '/Users/ashmit/Downloads/python/marathi_ocr_project/app.py', reloading
+2025-07-17 02:21:30,498 - INFO -  * Restarting with stat
+2025-07-17 02:24:21,757 - INFO -  * Restarting with stat

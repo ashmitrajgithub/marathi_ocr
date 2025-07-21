@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Marathi OCR - Text Extractor</title>
+  <style>
+    /* ✅ Same styles as yours — unchanged for brevity */
+    /* Place your full CSS here — no changes needed */
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>मराठी OCR</h1>
+      <p>Upload an image to extract Marathi text instantly</p>
+    </div>
+
+    <div class="server-status" id="serverStatus">
+      <span class="status-indicator status-checking" id="statusIndicator"></span>
+      <span id="statusText">Checking server connection...</span>
+    </div>
+
+    <div class="upload-section">
+      <div class="file-drop-area" id="fileDropArea">
+        <input type="file" id="fileInput" class="file-input" accept="image/*,.pdf" />
+        <div class="file-msg">
+          <span class="file-icon">📄</span>
+          <div>
+            <strong>Click to upload</strong> or drag and drop<br/>
+            <small>PNG, JPG, JPEG, PDF files supported</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="file-info" id="fileInfo"></div>
+
+      <button class="upload-btn" id="uploadBtn" onclick="upload()">Extract Text</button>
+      <button class="test-btn" onclick="testConnection()">Test Server</button>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Processing your image...</p>
+      </div>
+    </div>
+
+    <div class="result-section">
+      <h3>Extracted Text</h3>
+      <div class="result-box empty" id="result">
+        Upload an image to see extracted text here
+      </div>
+    </div>
+
+    <div class="debug-info" id="debugInfo">
+      <strong>Debug Information:</strong>
+      <pre id="debugContent"></pre>
+    </div>
+  </div>
+
+  <script>
+    const SERVER_URL = 'http://127.0.0.1:5001';
+    const fileInput = document.getElementById('fileInput');
+    const fileDropArea = document.getElementById('fileDropArea');
+    const fileInfo = document.getElementById('fileInfo');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+    const debugInfo = document.getElementById('debugInfo');
+    const debugContent = document.getElementById('debugContent');
+    const statusIndicator = document.getElementById('statusIndicator');
+    const statusText = document.getElementById('statusText');
+
+    window.addEventListener('load', checkServerConnection);
+    fileInput.addEventListener('change', handleFileSelect);
+    fileDropArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      fileDropArea.classList.add('dragover');
+    });
+    fileDropArea.addEventListener('dragleave', () => {
+      fileDropArea.classList.remove('dragover');
+    });
+    fileDropArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      fileDropArea.classList.remove('dragover');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        fileInput.files = files;
+        handleFileSelect();
+      }
+    });
+
+    async function checkServerConnection() {
+      try {
+        statusIndicator.className = 'status-indicator status-checking';
+        statusText.textContent = 'Checking server connection...';
+        await fetch(`${SERVER_URL}/upload`, { method: 'OPTIONS' });
+        statusIndicator.className = 'status-indicator status-online';
+        statusText.textContent = 'Server is online and ready';
+        uploadBtn.disabled = false;
+      } catch (error) {
+        statusIndicator.className = 'status-indicator status-offline';
+        statusText.textContent = 'Server is offline - Please start the Flask server';
+        uploadBtn.disabled = true;
+        showDebug('Server Connection Error', { error: error.message });
+      }
+    }
+
+    async function testConnection() {
+      await checkServerConnection();
+    }
+
+    function handleFileSelect() {
+      const file = fileInput.files[0];
+      if (file) {
+        const fileSize = (file.size / 1024 / 1024).toFixed(2);
+        fileInfo.innerHTML = `
+          <strong>Selected:</strong> ${file.name}<br/>
+          <strong>Size:</strong> ${fileSize} MB<br/>
+          <strong>Type:</strong> ${file.type}
+        `;
+        fileInfo.style.display = 'block';
+        fileInfo.className = 'file-info success';
+        fileDropArea.querySelector('.file-msg').innerHTML = `
+          <span class="file-icon">✅</span>
+          <div>
+            <strong>${file.name}</strong><br/>
+            <small>Ready to extract text</small>
+          </div>
+        `;
+      }
+    }
+
+    async function upload() {
+      if (fileInput.files.length === 0) {
+        showError("Please select a file first.");
+        return;
+      }
+      const file = fileInput.files[0];
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
+      if (!validTypes.includes(file.type)) {
+        showError("Please select a valid image file (PNG, JPG, JPEG, GIF) or PDF.");
+        return;
+      }
+
+      uploadBtn.disabled = true;
+      loading.style.display = 'block';
+      result.textContent = '';
+      result.className = 'result-box';
+      debugInfo.style.display = 'none';
+
+      const startTime = Date.now();
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const response = await fetch(`${SERVER_URL}/upload`, {
+          method: "POST",
+          body: formData
+        });
+        const responseTime = Date.now() - startTime;
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        const data = await response.json();
+        if (data.extracted_text) {
+          result.textContent = data.extracted_text;
+          result.className = 'result-box';
+          showSuccess(`Text extracted successfully! (${responseTime}ms)`);
+        } else if (data.error) {
+          showError(data.error);
+          result.textContent = 'Error: ' + data.error;
+          result.className = 'result-box';
+        } else {
+          showError("No text could be extracted from the image.");
+          result.textContent = 'No text found in the image.';
+          result.className = 'result-box';
+        }
+      } catch (error) {
+        showError("Connection error. Please check server.");
+        result.textContent = 'Connection error. Please try again.';
+        result.className = 'result-box';
+      } finally {
+        uploadBtn.disabled = false;
+        loading.style.display = 'none';
+      }
+    }
+
+    function showError(message) {
+      fileInfo.innerHTML = `<strong>Error:</strong> ${message}`;
+      fileInfo.className = 'file-info error';
+      fileInfo.style.display = 'block';
+    }
+
+    function showSuccess(message) {
+      fileInfo.innerHTML = `<strong>Success:</strong> ${message}`;
+      fileInfo.className = 'file-info success';
+      fileInfo.style.display = 'block';
+    }
+
+    function showDebug(title, data) {
+      debugContent.textContent = `${title}:\n${JSON.stringify(data, null, 2)}`;
+      debugInfo.style.display = 'block';
+    }
+
+    fileInput.addEventListener('change', () => {
+      result.textContent = 'Upload an image to see extracted text here';
+      result.className = 'result-box empty';
+      debugInfo.style.display = 'none';
+    });
+  </script>
+</body>
+</html>
