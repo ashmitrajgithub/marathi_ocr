@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OCR Test Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+        button { padding: 10px 20px; margin: 10px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 OCR Application Test</h1>
+    
+    <div class="test-section">
+        <h3>Server Status Tests</h3>
+        <button onclick="testHTML()">Test HTML Server</button>
+        <button onclick="testFlask()">Test Flask Server</button>
+        <div id="serverResults"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Upload Test</h3>
+        <input type="file" id="testFile" accept="image/*">
+        <button onclick="testUpload()">Test Upload</button>
+        <div id="uploadResults"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Quick Links</h3>
+        <a href="http://localhost:8000" target="_blank">→ Open Main Application</a><br>
+        <a href="http://localhost:8000/index.html" target="_blank">→ Open index.html directly</a>
+    </div>
+
+    <script>
+        async function testHTML() {
+            try {
+                const response = await fetch('http://localhost:8000');
+                document.getElementById('serverResults').innerHTML = 
+                    `<div class="success">✅ HTML Server: ${response.status} OK</div>`;
+            } catch (error) {
+                document.getElementById('serverResults').innerHTML = 
+                    `<div class="error">❌ HTML Server Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testFlask() {
+            try {
+                const response = await fetch('http://localhost:5001/upload', {method: 'OPTIONS'});
+                document.getElementById('serverResults').innerHTML += 
+                    `<div class="success">✅ Flask Server: ${response.status} OK</div>`;
+            } catch (error) {
+                document.getElementById('serverResults').innerHTML += 
+                    `<div class="error">❌ Flask Server Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testUpload() {
+            const fileInput = document.getElementById('testFile');
+            if (!fileInput.files[0]) {
+                document.getElementById('uploadResults').innerHTML = 
+                    '<div class="error">Please select a file first</div>';
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                
+                const response = await fetch('http://localhost:5001/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                document.getElementById('uploadResults').innerHTML = 
+                    `<div class="success">✅ Upload Success!<br>Extracted: ${result.extracted_text}</div>`;
+            } catch (error) {
+                document.getElementById('uploadResults').innerHTML = 
+                    `<div class="error">❌ Upload Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
