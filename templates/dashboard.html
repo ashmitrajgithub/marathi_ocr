@@ -1,0 +1,567 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Land Acquisition Blockchain System{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">Land Acquisition Dashboard</h1>
+        <p class="text-muted mb-0">Real-time overview of land acquisition activities</p>
+    </div>
+    <div>
+        <button class="btn btn-primary me-2" onclick="refreshDashboard()">
+            <i class="bi bi-arrow-clockwise"></i>
+            Refresh
+        </button>
+        <button class="btn btn-outline-primary" onclick="exportReport()">
+            <i class="bi bi-download"></i>
+            Export Report
+        </button>
+    </div>
+</div>
+
+<!-- Key Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="stat-card">
+            <h3 id="total-parcels">
+                {% if dashboard_data.status == 'success' %}
+                    {{ dashboard_data.summary.total_parcels }}
+                {% else %}
+                    0
+                {% endif %}
+            </h3>
+            <p>Total Land Parcels</p>
+            <small><i class="bi bi-map"></i> Survey Numbers Digitized</small>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="stat-card">
+            <h3 id="total-area">
+                {% if dashboard_data.status == 'success' %}
+                    {{ "%.1f"|format(dashboard_data.summary.total_area) }}
+                {% else %}
+                    0.0
+                {% endif %}
+            </h3>
+            <p>Total Area (Acres)</p>
+            <small><i class="bi bi-geo-alt"></i> Land Under Process</small>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="stat-card">
+            <h3 id="total-compensation">
+                {% if dashboard_data.status == 'success' %}
+                    ₹{{ "%.0f"|format(dashboard_data.summary.total_compensation / 10000000) }}Cr
+                {% else %}
+                    ₹0Cr
+                {% endif %}
+            </h3>
+            <p>Total Compensation</p>
+            <small><i class="bi bi-currency-rupee"></i> Amount Processed</small>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="stat-card">
+            <h3 id="avg-compensation">
+                {% if dashboard_data.status == 'success' %}
+                    ₹{{ "%.0f"|format(dashboard_data.summary.avg_compensation_per_acre / 100000) }}L
+                {% else %}
+                    ₹0L
+                {% endif %}
+            </h3>
+            <p>Avg. per Acre</p>
+            <small><i class="bi bi-calculator"></i> Compensation Rate</small>
+        </div>
+    </div>
+</div>
+
+<!-- Blockchain & AI Status Row -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="stat-card blockchain-status">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 id="blockchain-blocks">
+                        {% if blockchain_stats %}
+                            {{ blockchain_stats.total_blocks }}
+                        {% else %}
+                            0
+                        {% endif %}
+                    </h3>
+                    <p>Blockchain Blocks</p>
+                    <small>
+                        <i class="bi bi-shield-check"></i>
+                        {% if blockchain_stats and blockchain_stats.is_valid %}
+                            Chain Validated ✓
+                        {% else %}
+                            Chain Status Unknown
+                        {% endif %}
+                    </small>
+                </div>
+                <div class="text-end">
+                    <i class="bi bi-link-45deg" style="font-size: 3rem; opacity: 0.3;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-3">
+        <div class="stat-card ai-insights">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h3 id="ai-predictions">
+                        {% if dashboard_data.status == 'success' and dashboard_data.ai_insights %}
+                            {{ dashboard_data.ai_insights.predictions|length + dashboard_data.ai_insights.recommendations|length }}
+                        {% else %}
+                            0
+                        {% endif %}
+                    </h3>
+                    <p>AI Insights Available</p>
+                    <small><i class="bi bi-robot"></i> Predictive Analytics Active</small>
+                </div>
+                <div class="text-end">
+                    <i class="bi bi-cpu" style="font-size: 3rem; opacity: 0.3;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Row -->
+<div class="row">
+    <!-- Acquisition Status Chart -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-pie-chart"></i>
+                    Acquisition Status Distribution
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="statusChart" style="height: 300px;">
+                    <canvas id="statusPieChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- District-wise Progress -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-bar-chart"></i>
+                    District-wise Compensation
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="districtChart" style="height: 300px;">
+                    <canvas id="districtBarChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Insights & Recent Activities Row -->
+<div class="row">
+    <!-- AI Insights -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-lightbulb"></i>
+                    AI-Powered Insights
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if dashboard_data.status == 'success' and dashboard_data.ai_insights %}
+                    <!-- Trends -->
+                    {% if dashboard_data.ai_insights.trends %}
+                        <h6 class="text-primary">📈 Trends Detected</h6>
+                        <ul class="list-unstyled mb-3">
+                            {% for trend in dashboard_data.ai_insights.trends %}
+                                <li class="mb-2">
+                                    <i class="bi bi-arrow-up-right text-success me-2"></i>
+                                    {{ trend }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                    
+                    <!-- Anomalies -->
+                    {% if dashboard_data.ai_insights.anomalies %}
+                        <h6 class="text-warning">⚠️ Anomalies Found</h6>
+                        <ul class="list-unstyled mb-3">
+                            {% for anomaly in dashboard_data.ai_insights.anomalies %}
+                                <li class="mb-2">
+                                    <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                                    {{ anomaly }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                    
+                    <!-- Recommendations -->
+                    {% if dashboard_data.ai_insights.recommendations %}
+                        <h6 class="text-info">💡 Recommendations</h6>
+                        <ul class="list-unstyled">
+                            {% for recommendation in dashboard_data.ai_insights.recommendations %}
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-info me-2"></i>
+                                    {{ recommendation }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-robot text-muted" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-2">AI insights will appear here once sufficient data is available</p>
+                        <button class="btn btn-sm btn-outline-primary" onclick="trainAIModels()">
+                            <i class="bi bi-gear"></i>
+                            Train AI Models
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activities -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i>
+                    Recent Activities
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_activities %}
+                    <div style="max-height: 400px; overflow-y: auto;">
+                        {% for activity in recent_activities %}
+                            <div class="activity-item">
+                                <div class="d-flex justify-content-between">
+                                    <strong>
+                                        {% if activity.type == 'ACQUISITION_DECLARED' %}
+                                            <i class="bi bi-file-earmark-text text-primary me-2"></i>
+                                        {% elif activity.type == 'PAYMENT_MADE' %}
+                                            <i class="bi bi-credit-card text-success me-2"></i>
+                                        {% else %}
+                                            <i class="bi bi-info-circle text-info me-2"></i>
+                                        {% endif %}
+                                        {{ activity.type.replace('_', ' ').title() }}
+                                    </strong>
+                                    <small class="activity-time">
+                                        {{ activity.timestamp.strftime('%d %b, %H:%M') if activity.timestamp else 'Unknown' }}
+                                    </small>
+                                </div>
+                                <p class="mb-1">{{ activity.description }}</p>
+                                <small class="text-muted">
+                                    <i class="bi bi-person"></i>
+                                    {{ activity.officer }}
+                                </small>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-clock text-muted" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-2">No recent activities to display</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Blockchain Transaction Summary -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-link-45deg"></i>
+                    Blockchain Transaction Summary
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% if blockchain_stats %}
+                        <div class="col-md-3 text-center">
+                            <h4 class="text-primary">{{ blockchain_stats.total_transactions }}</h4>
+                            <p class="text-muted mb-0">Total Transactions</p>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <h4 class="text-warning">{{ blockchain_stats.pending_transactions }}</h4>
+                            <p class="text-muted mb-0">Pending Transactions</p>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <h4 class="text-success">
+                                {% if blockchain_stats.is_valid %}
+                                    <i class="bi bi-check-circle"></i>
+                                {% else %}
+                                    <i class="bi bi-x-circle"></i>
+                                {% endif %}
+                            </h4>
+                            <p class="text-muted mb-0">Chain Integrity</p>
+                        </div>
+                        <div class="col-md-3 text-center">
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewBlockchainDetails()">
+                                <i class="bi bi-eye"></i>
+                                View Details
+                            </button>
+                            <p class="text-muted mb-0 mt-1">Explore Blockchain</p>
+                        </div>
+                    {% else %}
+                        <div class="col-12 text-center">
+                            <i class="bi bi-link-45deg text-muted" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-2">Blockchain statistics loading...</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-lightning"></i>
+                    Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-2 mb-3">
+                        <button class="btn btn-outline-primary w-100" onclick="loadSection('land-records')">
+                            <i class="bi bi-plus-circle d-block mb-2" style="font-size: 1.5rem;"></i>
+                            Add Land Record
+                        </button>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <button class="btn btn-outline-success w-100" onclick="loadSection('acquisitions')">
+                            <i class="bi bi-file-earmark-text d-block mb-2" style="font-size: 1.5rem;"></i>
+                            Declare Award
+                        </button>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <button class="btn btn-outline-info w-100" onclick="loadSection('payments')">
+                            <i class="bi bi-credit-card d-block mb-2" style="font-size: 1.5rem;"></i>
+                            Process Payment
+                        </button>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <button class="btn btn-outline-warning w-100" onclick="loadSection('queries')">
+                            <i class="bi bi-chat-dots d-block mb-2" style="font-size: 1.5rem;"></i>
+                            Handle Query
+                        </button>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <button class="btn btn-outline-secondary w-100" onclick="loadSection('ocr')">
+                            <i class="bi bi-file-text d-block mb-2" style="font-size: 1.5rem;"></i>
+                            OCR Document
+                        </button>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <button class="btn btn-outline-dark w-100" onclick="loadSection('reports')">
+                            <i class="bi bi-graph-up d-block mb-2" style="font-size: 1.5rem;"></i>
+                            Generate Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Dashboard specific JavaScript
+    let statusChart, districtChart;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeCharts();
+        loadDashboardData();
+    });
+    
+    function initializeCharts() {
+        // Status Distribution Pie Chart
+        const statusCtx = document.getElementById('statusPieChart').getContext('2d');
+        const statusData = {{ dashboard_data.status_distribution | tojson if dashboard_data.status == 'success' else '{}' | safe }};
+        
+        statusChart = new Chart(statusCtx, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(statusData),
+                datasets: [{
+                    data: Object.values(statusData),
+                    backgroundColor: [
+                        '#3498db',  // NOT_ACQUIRED
+                        '#f39c12',  // DECLARED
+                        '#27ae60',  // ACQUIRED
+                        '#e74c3c',  // PAID
+                        '#9b59b6'   // OTHER
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        
+        // District-wise Bar Chart
+        const districtCtx = document.getElementById('districtBarChart').getContext('2d');
+        const districtData = {{ dashboard_data.district_stats | tojson if dashboard_data.status == 'success' else '{}' | safe }};
+        
+        const districts = Object.keys(districtData);
+        const compensations = districts.map(d => districtData[d]?.total_compensation || 0);
+        
+        districtChart = new Chart(districtCtx, {
+            type: 'bar',
+            data: {
+                labels: districts,
+                datasets: [{
+                    label: 'Total Compensation (₹)',
+                    data: compensations,
+                    backgroundColor: 'rgba(52, 152, 219, 0.8)',
+                    borderColor: 'rgba(52, 152, 219, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '₹' + (value / 1000000).toFixed(1) + 'M';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+    
+    function loadDashboardData() {
+        fetch('/api/ai/dashboard-data')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updateDashboardStats(data);
+                    updateCharts(data);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading dashboard data:', error);
+                showError('Failed to load dashboard data');
+            });
+    }
+    
+    function updateDashboardStats(data) {
+        document.getElementById('total-parcels').textContent = data.summary.total_parcels;
+        document.getElementById('total-area').textContent = data.summary.total_area.toFixed(1);
+        document.getElementById('total-compensation').textContent = '₹' + (data.summary.total_compensation / 10000000).toFixed(1) + 'Cr';
+        document.getElementById('avg-compensation').textContent = '₹' + (data.summary.avg_compensation_per_acre / 100000).toFixed(1) + 'L';
+    }
+    
+    function updateCharts(data) {
+        // Update status chart
+        statusChart.data.labels = Object.keys(data.status_distribution);
+        statusChart.data.datasets[0].data = Object.values(data.status_distribution);
+        statusChart.update();
+        
+        // Update district chart
+        const districts = Object.keys(data.district_stats);
+        const compensations = districts.map(d => data.district_stats[d]?.total_compensation || 0);
+        
+        districtChart.data.labels = districts;
+        districtChart.data.datasets[0].data = compensations;
+        districtChart.update();
+    }
+    
+    function refreshDashboard() {
+        showLoading();
+        loadDashboardData();
+        
+        // Refresh blockchain stats
+        fetch('/api/blockchain/stats')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('blockchain-blocks').textContent = data.total_blocks;
+                hideLoading();
+                showSuccess('Dashboard refreshed successfully');
+            })
+            .catch(error => {
+                hideLoading();
+                showError('Failed to refresh dashboard');
+            });
+    }
+    
+    function exportReport() {
+        showLoading();
+        
+        // Simulate report generation
+        setTimeout(() => {
+            hideLoading();
+            showSuccess('Report exported successfully');
+            
+            // In a real implementation, this would trigger a file download
+            const reportData = {
+                timestamp: new Date().toISOString(),
+                summary: 'Land Acquisition Dashboard Report',
+                // Add more report data here
+            };
+            
+            console.log('Report data:', reportData);
+        }, 2000);
+    }
+    
+    function trainAIModels() {
+        showLoading();
+        
+        // Simulate AI model training
+        setTimeout(() => {
+            hideLoading();
+            showSuccess('AI models training initiated. This may take a few minutes.');
+            
+            // Refresh dashboard after training
+            setTimeout(() => {
+                loadDashboardData();
+            }, 5000);
+        }, 1000);
+    }
+    
+    function viewBlockchainDetails() {
+        loadSection('blockchain');
+    }
+</script>
+{% endblock %}
